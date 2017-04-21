@@ -1,0 +1,22 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/application-exit-2.png</file>
+        <file>images/document-close-4.png</file>
+        <file>images/document-open-7.png</file>
+        <file>images/appicon.png</file>
+        <file>images/edit-find-7.png</file>
+        <file>images/document-page-setup.png</file>
+        <file>images/edit-clear-3.png</file>
+        <file>images/edit-copy-4.png</file>
+        <file>images/edit-find-4.png</file>
+        <file>images/edit-select-all.png</file>
+        <file>images/format-wordwrap.png</file>
+        <file>images/go-next-7.png</file>
+        <file>images/go-previous-7.png</file>
+        <file>images/help-about-3.png</file>
+        <file>images/printer-7.png</file>
+        <file>images/system-settings.png</file>
+        <file>images/view-refresh-3.png</file>
+        <file>images/configure-5.png</file>
+    </qresource>
+</RCC>
