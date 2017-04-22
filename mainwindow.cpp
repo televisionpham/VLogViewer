@@ -68,7 +68,7 @@ void MainWindow::UpdateCurrentStat()
 {
     file_path_label->setText(current_file_path);
     QFileInfo file_info(current_file_path);
-    auto file_size = file_info.size();
+    int file_size = file_info.size();
     if (file_size > 1000000)
     {
         file_size_label->setText(QString::number(file_size/1000000) + " MB");
@@ -87,9 +87,7 @@ void MainWindow::UpdateCurrentStat()
 
 void MainWindow::OpenFile(const QString& path)
 {
-    current_file_path = path;
-    LogFile* log_file = new LogFile(this, path);
-    ui->logButtonsHorizontalLayout->addWidget(log_file->file_button);
+    current_file_path = path;        
 }
 
 void MainWindow::on_actionOpen_triggered()
