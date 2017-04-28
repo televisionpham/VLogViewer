@@ -55,6 +55,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
     else
     {
         SaveSettings();
+        this->refresh_thread->SetStop(true);
+        if (this->refresh_thread->isRunning())
+        {
+            this->refresh_thread->quit();
+            this->refresh_thread->wait(1000);
+        }
         event->accept();
     }
 }
@@ -71,7 +77,7 @@ void MainWindow::LoadSettings()
     bool show_toolbar = settings.value("ShowToolbar").toBool();
     bool show_status_bar = settings.value("ShowStatusBar").toBool();
     reload_interval = settings.value("ReloadInterval").toInt();
-    bool follow_tail = settings.value("FollowTail").toBool();
+    this->follow_tail = settings.value("FollowTail").toBool();
     bool word_wrap = settings.value("WordWrap").toBool();
     app_settings.SetShowToolbar(show_toolbar);
     app_settings.SetShowStatusBar(show_status_bar);
@@ -82,7 +88,7 @@ void MainWindow::LoadSettings()
     ui->actionWordWrap->setChecked(word_wrap);
     ui->actionFollowTail->setChecked(follow_tail);
 
-    refresh_thread = new RefreshThread(this, current_file_path, ui->current_file_text_edit, reload_interval);
+    refresh_thread = new RefreshThread(this, this->current_file_path, ui->current_file_text_edit, this->reload_interval, this->follow_tail);
 }
 
 void MainWindow::SaveSettings()
@@ -119,6 +125,12 @@ void MainWindow::UpdateCurrentStat()
 
 void MainWindow::OpenFile(const QString& path)
 {
+    this->refresh_thread->SetStop(true);
+    this->refresh_thread->wait(1000);
+    if (this->refresh_thread->isRunning())
+    {
+        this->refresh_thread->quit();
+    }
     current_file_path = path;
     ui->current_file_label->setText(current_file_path);
     QFileInfo fi(current_file_path);
@@ -130,7 +142,12 @@ void MainWindow::OpenFile(const QString& path)
     if (file.open(QIODevice::ReadOnly|QIODevice::Text))
     {
         ui->current_file_text_edit->setPlainText(QString::fromUtf8(file.readAll()));
-        ui->current_file_text_edit->verticalScrollBar()->setValue(ui->current_file_text_edit->verticalScrollBar()->maximum());
+        if (this->follow_tail)
+        {
+            ui->current_file_text_edit->verticalScrollBar()->setValue(ui->current_file_text_edit->verticalScrollBar()->maximum());
+        }
+        this->refresh_thread->SetStop(false);
+        this->refresh_thread->start();
     }
 }
 
@@ -169,5 +186,6 @@ void MainWindow::on_actionWordWrap_triggered(bool checked)
 
 void MainWindow::on_actionFollowTail_triggered(bool checked)
 {
-    app_settings.SetFollowTail(checked);
+    this->follow_tail = checked;
+    app_settings.SetFollowTail(this->follow_tail);
 }

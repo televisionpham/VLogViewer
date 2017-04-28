@@ -36,6 +36,7 @@ private:
     QString current_file_path = tr("");
     QDirModel* dir_model;
     int reload_interval = 1;
+    bool follow_tail = true;
     RefreshThread* refresh_thread;
 
     void closeEvent(QCloseEvent *event) override;
