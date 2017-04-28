@@ -26,11 +26,11 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += main.cpp\
         mainwindow.cpp \
     appsettings.cpp \
-    logfile.cpp
+    refreshthread.cpp
 
 HEADERS  += mainwindow.h \
     appsettings.h \
-    logfile.h
+    refreshthread.h
 
 FORMS    += mainwindow.ui
 

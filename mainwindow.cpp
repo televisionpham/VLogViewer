@@ -1,17 +1,22 @@
+#include <iostream>
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QFileDialog>
 #include <QSettings>
 #include <QMessageBox>
 #include <QDateTime>
+#include <QCloseEvent>
+#include <QScrollBar>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    ui->splitter->setSizes(QList<int>() << 200 << 800);
     QWidget::setWindowIcon(QIcon(":/images/appicon.png"));
     QWidget::showMaximized();
+
     QCoreApplication::setOrganizationName("Vanpt");
     QCoreApplication::setApplicationName("VLogViewer");
 
@@ -25,11 +30,33 @@ MainWindow::MainWindow(QWidget *parent) :
     LoadSettings();
     app_settings.SetRunTimes(app_settings.GetRunTimes() + 1);
     SaveSettings();
+
+    dir_model = new QDirModel;
+    dir_model->setReadOnly(true);
+    dir_model->setSorting(QDir::DirsFirst|QDir::IgnoreCase|QDir::Name);
+    ui->dir_tree_view->setModel(dir_model);
+    QModelIndex index = dir_model->index(QDir::currentPath());
+    ui->dir_tree_view->expand(index);
+    ui->dir_tree_view->scrollTo(index);
+    ui->dir_tree_view->resizeColumnToContents(0);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    QMessageBox::StandardButton answer = QMessageBox::question(this, qAppName(), tr("Close the application?"), QMessageBox::Yes|QMessageBox::No);
+    if (answer != QMessageBox::Yes)
+    {
+        event->ignore();
+    }
+    else
+    {
+        SaveSettings();
+        event->accept();
+    }
 }
 
 void MainWindow::LoadSettings()
@@ -43,7 +70,7 @@ void MainWindow::LoadSettings()
     }
     bool show_toolbar = settings.value("ShowToolbar").toBool();
     bool show_status_bar = settings.value("ShowStatusBar").toBool();
-    int reload_interval = settings.value("ReloadInterval").toInt();
+    reload_interval = settings.value("ReloadInterval").toInt();
     bool follow_tail = settings.value("FollowTail").toBool();
     bool word_wrap = settings.value("WordWrap").toBool();
     app_settings.SetShowToolbar(show_toolbar);
@@ -51,6 +78,11 @@ void MainWindow::LoadSettings()
     app_settings.SetReloadInterval(reload_interval);
     app_settings.SetFollowTail(follow_tail);
     app_settings.SetWordWrap(word_wrap);
+
+    ui->actionWordWrap->setChecked(word_wrap);
+    ui->actionFollowTail->setChecked(follow_tail);
+
+    refresh_thread = new RefreshThread(this, current_file_path, ui->current_file_text_edit, reload_interval);
 }
 
 void MainWindow::SaveSettings()
@@ -87,7 +119,19 @@ void MainWindow::UpdateCurrentStat()
 
 void MainWindow::OpenFile(const QString& path)
 {
-    current_file_path = path;        
+    current_file_path = path;
+    ui->current_file_label->setText(current_file_path);
+    QFileInfo fi(current_file_path);
+    QModelIndex index = dir_model->index(fi.absoluteFilePath());
+    ui->dir_tree_view->expand(index);
+    ui->dir_tree_view->scrollTo(index);
+    ui->dir_tree_view->resizeColumnToContents(0);
+    QFile file(path);
+    if (file.open(QIODevice::ReadOnly|QIODevice::Text))
+    {
+        ui->current_file_text_edit->setPlainText(QString::fromUtf8(file.readAll()));
+        ui->current_file_text_edit->verticalScrollBar()->setValue(ui->current_file_text_edit->verticalScrollBar()->maximum());
+    }
 }
 
 void MainWindow::on_actionOpen_triggered()
@@ -108,4 +152,22 @@ void MainWindow::on_actionOpen_triggered()
         return;
     }
     UpdateCurrentStat();
+}
+
+void MainWindow::on_actionWordWrap_triggered(bool checked)
+{
+    if (checked)
+    {
+        ui->current_file_text_edit->setLineWrapMode(QTextEdit::WidgetWidth);
+    }
+    else
+    {
+        ui->current_file_text_edit->setLineWrapMode(QTextEdit::NoWrap);
+    }
+    app_settings.SetWordWrap(checked);
+}
+
+void MainWindow::on_actionFollowTail_triggered(bool checked)
+{
+    app_settings.SetFollowTail(checked);
 }

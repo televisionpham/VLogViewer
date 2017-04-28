@@ -4,7 +4,9 @@
 #include <QMainWindow>
 #include "appsettings.h"
 #include <QLabel>
-#include "logfile.h"
+#include <QSplitter>
+#include <QDirModel>
+#include "refreshthread.h"
 
 namespace Ui {
 class MainWindow;
@@ -19,16 +21,24 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_actionOpen_triggered();
+    void on_actionOpen_triggered();    
+
+    void on_actionWordWrap_triggered(bool checked);
+
+    void on_actionFollowTail_triggered(bool checked);
 
 private:
     Ui::MainWindow *ui;
-    AppSettings app_settings;
+    AppSettings app_settings;    
     QLabel* file_size_label;
     QLabel* file_time_label;
     QLabel* file_path_label;
-    QString current_file_path;
-    QVector<LogFile> log_files;
+    QString current_file_path = tr("");
+    QDirModel* dir_model;
+    int reload_interval = 1;
+    RefreshThread* refresh_thread;
+
+    void closeEvent(QCloseEvent *event) override;
     void LoadSettings();
     void SaveSettings();
     void UpdateCurrentStat();
