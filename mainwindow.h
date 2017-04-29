@@ -27,6 +27,14 @@ private slots:
 
     void on_actionFollowTail_triggered(bool checked);
 
+    void on_actionClose_triggered();
+
+    void on_actionClear_triggered();
+
+    void on_dir_tree_view_doubleClicked(const QModelIndex &index);
+
+    void on_actionReload_triggered();
+
 private:
     Ui::MainWindow *ui;
     AppSettings app_settings;    
@@ -44,6 +52,7 @@ private:
     void SaveSettings();
     void UpdateCurrentStat();
     void OpenFile(const QString&);
+    void StopRefreshThread();
 };
 
 #endif // MAINWINDOW_H

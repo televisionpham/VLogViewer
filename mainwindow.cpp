@@ -55,12 +55,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     else
     {
         SaveSettings();
-        this->refresh_thread->SetStop(true);
-        if (this->refresh_thread->isRunning())
-        {
-            this->refresh_thread->quit();
-            this->refresh_thread->wait(1000);
-        }
+        StopRefreshThread();
         event->accept();
     }
 }
@@ -105,32 +100,35 @@ void MainWindow::SaveSettings()
 void MainWindow::UpdateCurrentStat()
 {
     file_path_label->setText(current_file_path);
-    QFileInfo file_info(current_file_path);
-    int file_size = file_info.size();
-    if (file_size > 1000000)
+    if (current_file_path != "")
     {
-        file_size_label->setText(QString::number(file_size/1000000) + " MB");
-    }
-    else if (file_size > 1000)
-    {
-        file_size_label->setText(QString::number(file_size/1000) + " KB");
+        QFileInfo file_info(current_file_path);
+        int file_size = file_info.size();
+        if (file_size > 1000000)
+        {
+            file_size_label->setText(QString::number(file_size/1000000) + " MB");
+        }
+        else if (file_size > 1000)
+        {
+            file_size_label->setText(QString::number(file_size/1000) + " KB");
+        }
+        else
+        {
+            file_size_label->setText(QString::number(file_info.size()) + " B");
+        }
+        QDateTime file_time = file_info.lastModified();
+        file_time_label->setText(file_time.toString(Qt::SystemLocaleShortDate));
     }
     else
     {
-        file_size_label->setText(QString::number(file_info.size()) + " B");
+        file_size_label->setText("0");
+        file_time_label->setText("");
     }
-    QDateTime file_time = file_info.lastModified();
-    file_time_label->setText(file_time.toString(Qt::SystemLocaleShortDate));
 }
 
 void MainWindow::OpenFile(const QString& path)
 {
-    this->refresh_thread->SetStop(true);
-    this->refresh_thread->wait(1000);
-    if (this->refresh_thread->isRunning())
-    {
-        this->refresh_thread->quit();
-    }
+    StopRefreshThread();
     current_file_path = path;
     ui->current_file_label->setText(current_file_path);
     QFileInfo fi(current_file_path);
@@ -138,17 +136,25 @@ void MainWindow::OpenFile(const QString& path)
     ui->dir_tree_view->expand(index);
     ui->dir_tree_view->scrollTo(index);
     ui->dir_tree_view->resizeColumnToContents(0);
-    QFile file(path);
-    if (file.open(QIODevice::ReadOnly|QIODevice::Text))
+    if (current_file_path != "")
     {
-        ui->current_file_text_edit->setPlainText(QString::fromUtf8(file.readAll()));
-        if (this->follow_tail)
+        QFile file(path);
+        if (file.open(QIODevice::ReadOnly|QIODevice::Text))
         {
-            ui->current_file_text_edit->verticalScrollBar()->setValue(ui->current_file_text_edit->verticalScrollBar()->maximum());
+            ui->current_file_text_edit->setPlainText(QString::fromUtf8(file.readAll()));
+            if (this->follow_tail)
+            {
+                ui->current_file_text_edit->verticalScrollBar()->setValue(ui->current_file_text_edit->verticalScrollBar()->maximum());
+            }
+            this->refresh_thread->SetStop(false);
+            this->refresh_thread->start();
         }
-        this->refresh_thread->SetStop(false);
-        this->refresh_thread->start();
+        else
+        {
+            QMessageBox::critical(this, qAppName(), "Cannot open file:\n" + current_file_path);
+        }
     }
+    this->UpdateCurrentStat();
 }
 
 void MainWindow::on_actionOpen_triggered()
@@ -158,17 +164,7 @@ void MainWindow::on_actionOpen_triggered()
     {
         return;
     }
-    QFile file(filename);
-    if (file.open(QIODevice::ReadOnly|QIODevice::Text))
-    {
-        OpenFile(filename);
-    }
-    else
-    {
-        QMessageBox::critical(this, qApp->applicationName(), "Unable to open file", QMessageBox::Ok);
-        return;
-    }
-    UpdateCurrentStat();
+    OpenFile(filename);
 }
 
 void MainWindow::on_actionWordWrap_triggered(bool checked)
@@ -188,4 +184,61 @@ void MainWindow::on_actionFollowTail_triggered(bool checked)
 {
     this->follow_tail = checked;
     app_settings.SetFollowTail(this->follow_tail);
+}
+
+void MainWindow::on_actionClose_triggered()
+{
+    this->StopRefreshThread();
+    ui->current_file_label->setText("");
+    ui->current_file_text_edit->setPlainText("");
+    this->OpenFile("");
+}
+
+void MainWindow::StopRefreshThread()
+{
+    this->refresh_thread->SetStop(true);
+    if (this->refresh_thread->isRunning())
+    {
+        this->refresh_thread->quit();
+        this->refresh_thread->wait(1000);
+    }
+}
+
+void MainWindow::on_actionClear_triggered()
+{
+    if (current_file_path == "")
+    {
+        return;
+    }
+    QMessageBox::StandardButton answer =
+            QMessageBox::question(this, qAppName(), "Are you sure want to clear the file content?", QMessageBox::Yes|QMessageBox::No);
+    if (answer != QMessageBox::Yes)
+    {
+        return;
+    }
+    QFile file(current_file_path);
+    if (file.open(QIODevice::WriteOnly|QIODevice::Text))
+    {
+        file.write("");
+    }
+    else
+    {
+        QMessageBox::critical(this, qAppName(), "Cannot open file:\n" + current_file_path);
+    }
+}
+
+void MainWindow::on_dir_tree_view_doubleClicked(const QModelIndex &index)
+{
+    QString path = this->dir_model->filePath(index);
+    if (!path.endsWith(".log", Qt::CaseInsensitive))
+    {
+        return;
+    }
+    this->OpenFile(path);
+}
+
+void MainWindow::on_actionReload_triggered()
+{
+    this->dir_model->refresh();
+    this->OpenFile(current_file_path);
 }
