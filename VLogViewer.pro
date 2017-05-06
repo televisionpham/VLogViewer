@@ -26,15 +26,23 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += main.cpp\
         mainwindow.cpp \
     appsettings.cpp \
-    refreshthread.cpp
+    refreshthread.cpp \
+    optionsdialog.cpp \
 
 HEADERS  += mainwindow.h \
     appsettings.h \
-    refreshthread.h
+    refreshthread.h \
+    optionsdialog.h \
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    optionsdialog.ui \
 
 RESOURCES += \
     resources.qrc
 
 RC_FILE = myapp.rc
+
+unix|win32: LIBS += -L$$PWD/lib/ -lqtfindreplacedialog
+
+INCLUDEPATH += $$PWD/dialogs
+DEPENDPATH += $$PWD/dialogs

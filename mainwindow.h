@@ -5,8 +5,10 @@
 #include "appsettings.h"
 #include <QLabel>
 #include <QSplitter>
-#include <QDirModel>
+#include <QFileSystemModel>
 #include "refreshthread.h"
+#include "optionsdialog.h"
+#include "dialogs/finddialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -35,17 +37,32 @@ private slots:
 
     void on_actionReload_triggered();
 
+    void on_actionOptions_triggered();
+
+    void on_actionSelectAll_triggered();
+
+    void on_actionCopy_triggered();
+
+    void on_actionFind_triggered();
+
+    void on_actionFindNext_triggered();
+
+    void on_actionFindPrevious_triggered();
+
+    void on_actionAbout_triggered();
+
+    void on_actionFont_triggered();
+
 private:
     Ui::MainWindow *ui;
     AppSettings app_settings;    
     QLabel* file_size_label;
     QLabel* file_time_label;
-    QLabel* file_path_label;
-    QString current_file_path = tr("");
-    QDirModel* dir_model;
-    int reload_interval = 1;
-    bool follow_tail = true;
+    QLabel* file_path_label;    
+    QFileSystemModel* dir_model;
     RefreshThread* refresh_thread;
+    OptionsDialog* options_dialog;
+    FindDialog* find_dialog;
 
     void closeEvent(QCloseEvent *event) override;
     void LoadSettings();

@@ -24,10 +24,7 @@ bool AppSettings::GetShowToolbar()
 
 void AppSettings::SetShowToolbar(bool value)
 {
-    if (show_toolbar != value)
-    {
-        show_toolbar = value;
-    }
+    show_toolbar = value;
 }
 
 bool AppSettings::GetShowStatusBar()
@@ -37,10 +34,7 @@ bool AppSettings::GetShowStatusBar()
 
 void AppSettings::SetShowStatusBar(bool value)
 {
-    if (show_status_bar != value)
-    {
-        show_status_bar = value;
-    }
+    show_status_bar = value;
 }
 
 int AppSettings::GetReloadInterval()
@@ -63,10 +57,7 @@ bool AppSettings::GetFollowTail()
 
 void AppSettings::SetFollowTail(bool value)
 {
-    if (follow_tail != value)
-    {
-        follow_tail = value;
-    }
+    follow_tail = value;
 }
 
 bool AppSettings::GetWordWrap()
@@ -76,8 +67,5 @@ bool AppSettings::GetWordWrap()
 
 void AppSettings::SetWordWrap(bool value)
 {
-    if (word_wrap != value)
-    {
-        word_wrap = value;
-    }
+    word_wrap = value;
 }

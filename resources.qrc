@@ -18,5 +18,6 @@
         <file>images/system-settings.png</file>
         <file>images/view-refresh-3.png</file>
         <file>images/configure-5.png</file>
+        <file>images/font-x-generic.png</file>
     </qresource>
 </RCC>

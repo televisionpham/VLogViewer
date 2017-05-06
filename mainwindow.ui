@@ -98,7 +98,7 @@
      <string>&amp;Option</string>
     </property>
     <addaction name="actionOptions"/>
-    <addaction name="actionColorFilter"/>
+    <addaction name="actionFont"/>
     <addaction name="separator"/>
     <addaction name="actionFollowTail"/>
     <addaction name="actionWordWrap"/>
@@ -131,7 +131,7 @@
    <addaction name="actionFindPrevious"/>
    <addaction name="separator"/>
    <addaction name="actionOptions"/>
-   <addaction name="actionColorFilter"/>
+   <addaction name="actionFont"/>
    <addaction name="separator"/>
    <addaction name="actionReload"/>
    <addaction name="actionFollowTail"/>
@@ -285,15 +285,6 @@
     <string>&amp;Options..</string>
    </property>
   </action>
-  <action name="actionColorFilter">
-   <property name="icon">
-    <iconset resource="resources.qrc">
-     <normaloff>:/images/configure-5.png</normaloff>:/images/configure-5.png</iconset>
-   </property>
-   <property name="text">
-    <string>&amp;Color &amp;&amp; Filter...</string>
-   </property>
-  </action>
   <action name="actionFollowTail">
    <property name="checkable">
     <bool>true</bool>
@@ -325,6 +316,15 @@
    </property>
    <property name="text">
     <string>&amp;About...</string>
+   </property>
+  </action>
+  <action name="actionFont">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/images/font-x-generic.png</normaloff>:/images/font-x-generic.png</iconset>
+   </property>
+   <property name="text">
+    <string>Fo&amp;nt...</string>
    </property>
   </action>
  </widget>

@@ -7,6 +7,9 @@
 #include <QDateTime>
 #include <QCloseEvent>
 #include <QScrollBar>
+#include <QClipboard>
+#include <QFontDialog>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -27,18 +30,34 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->statusBar->addPermanentWidget(file_time_label);
     ui->statusBar->addPermanentWidget(file_path_label);
 
+    options_dialog = new OptionsDialog(this);
+
     LoadSettings();
     app_settings.SetRunTimes(app_settings.GetRunTimes() + 1);
     SaveSettings();
 
-    dir_model = new QDirModel;
+    dir_model = new QFileSystemModel(this);
     dir_model->setReadOnly(true);
-    dir_model->setSorting(QDir::DirsFirst|QDir::IgnoreCase|QDir::Name);
-    ui->dir_tree_view->setModel(dir_model);
-    QModelIndex index = dir_model->index(QDir::currentPath());
-    ui->dir_tree_view->expand(index);
-    ui->dir_tree_view->scrollTo(index);
+    dir_model->setFilter(QDir::AllEntries|QDir::NoDotAndDotDot);
+    dir_model->setRootPath("C:");
+    ui->dir_tree_view->setModel(dir_model);    
     ui->dir_tree_view->resizeColumnToContents(0);
+
+    refresh_thread = new RefreshThread(
+                this,
+                app_settings.last_file,
+                ui->current_file_text_edit,
+                app_settings.reload_interval,
+                app_settings.follow_tail);
+    ui->mainToolBar->setVisible(app_settings.show_toolbar);
+    ui->statusBar->setVisible(app_settings.show_status_bar);
+    if (!app_settings.last_file.isNull() && !app_settings.last_file.isEmpty())
+    {
+        OpenFile(app_settings.last_file);
+    }
+    find_dialog = new FindDialog(this);
+    find_dialog->setModal(false);
+    find_dialog->setTextEdit(ui->current_file_text_edit);
 }
 
 MainWindow::~MainWindow()
@@ -47,6 +66,12 @@ MainWindow::~MainWindow()
 }
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    if (!app_settings.show_exit_confirmation)
+    {
+        SaveSettings();
+        StopRefreshThread();
+        return;
+    }
     QMessageBox::StandardButton answer = QMessageBox::question(this, qAppName(), tr("Close the application?"), QMessageBox::Yes|QMessageBox::No);
     if (answer != QMessageBox::Yes)
     {
@@ -71,19 +96,20 @@ void MainWindow::LoadSettings()
     }
     bool show_toolbar = settings.value("ShowToolbar").toBool();
     bool show_status_bar = settings.value("ShowStatusBar").toBool();
-    reload_interval = settings.value("ReloadInterval").toInt();
-    this->follow_tail = settings.value("FollowTail").toBool();
+    int reload_interval = settings.value("ReloadInterval").toInt();
+    bool follow_tail = settings.value("FollowTail").toBool();
     bool word_wrap = settings.value("WordWrap").toBool();
+    app_settings.show_exit_confirmation = settings.value("ShowExitConfirmation").toBool();
+    app_settings.show_clear_log_confirmation = settings.value("ShowClearLogConfirmation").toBool();
+    app_settings.last_file = settings.value("LastFile").toString();
     app_settings.SetShowToolbar(show_toolbar);
     app_settings.SetShowStatusBar(show_status_bar);
     app_settings.SetReloadInterval(reload_interval);
     app_settings.SetFollowTail(follow_tail);
-    app_settings.SetWordWrap(word_wrap);
+    app_settings.SetWordWrap(word_wrap);        
 
     ui->actionWordWrap->setChecked(word_wrap);
-    ui->actionFollowTail->setChecked(follow_tail);
-
-    refresh_thread = new RefreshThread(this, this->current_file_path, ui->current_file_text_edit, this->reload_interval, this->follow_tail);
+    ui->actionFollowTail->setChecked(follow_tail);    
 }
 
 void MainWindow::SaveSettings()
@@ -95,14 +121,17 @@ void MainWindow::SaveSettings()
     settings.setValue("ReloadInterval", app_settings.GetReloadInterval());
     settings.setValue("FollowTail", app_settings.GetFollowTail());
     settings.setValue("WordWrap", app_settings.GetWordWrap());
+    settings.setValue("ShowExitConfirmation", app_settings.show_exit_confirmation);
+    settings.setValue("ShowClearLogConfirmation", app_settings.show_clear_log_confirmation);
+    settings.setValue("LastFile", app_settings.last_file);
 }
 
 void MainWindow::UpdateCurrentStat()
 {
-    file_path_label->setText(current_file_path);
-    if (current_file_path != "")
+    file_path_label->setText(app_settings.last_file);
+    if (app_settings.last_file != "")
     {
-        QFileInfo file_info(current_file_path);
+        QFileInfo file_info(app_settings.last_file);
         int file_size = file_info.size();
         if (file_size > 1000000)
         {
@@ -128,21 +157,21 @@ void MainWindow::UpdateCurrentStat()
 
 void MainWindow::OpenFile(const QString& path)
 {
-    StopRefreshThread();
-    current_file_path = path;
-    ui->current_file_label->setText(current_file_path);
-    QFileInfo fi(current_file_path);
+    StopRefreshThread();    
+    app_settings.last_file = path;
+    ui->current_file_label->setText(app_settings.last_file);
+    QFileInfo fi(app_settings.last_file);
     QModelIndex index = dir_model->index(fi.absoluteFilePath());
     ui->dir_tree_view->expand(index);
     ui->dir_tree_view->scrollTo(index);
     ui->dir_tree_view->resizeColumnToContents(0);
-    if (current_file_path != "")
+    if (app_settings.last_file != "")
     {
         QFile file(path);
         if (file.open(QIODevice::ReadOnly|QIODevice::Text))
         {
             ui->current_file_text_edit->setPlainText(QString::fromUtf8(file.readAll()));
-            if (this->follow_tail)
+            if (app_settings.follow_tail)
             {
                 ui->current_file_text_edit->verticalScrollBar()->setValue(ui->current_file_text_edit->verticalScrollBar()->maximum());
             }
@@ -151,7 +180,7 @@ void MainWindow::OpenFile(const QString& path)
         }
         else
         {
-            QMessageBox::critical(this, qAppName(), "Cannot open file:\n" + current_file_path);
+            QMessageBox::critical(this, qAppName(), "Cannot open file:\n" + app_settings.last_file);
         }
     }
     this->UpdateCurrentStat();
@@ -181,9 +210,8 @@ void MainWindow::on_actionWordWrap_triggered(bool checked)
 }
 
 void MainWindow::on_actionFollowTail_triggered(bool checked)
-{
-    this->follow_tail = checked;
-    app_settings.SetFollowTail(this->follow_tail);
+{    
+    app_settings.SetFollowTail(checked);
 }
 
 void MainWindow::on_actionClose_triggered()
@@ -206,24 +234,27 @@ void MainWindow::StopRefreshThread()
 
 void MainWindow::on_actionClear_triggered()
 {
-    if (current_file_path == "")
+    if (app_settings.last_file == "")
     {
         return;
     }
-    QMessageBox::StandardButton answer =
-            QMessageBox::question(this, qAppName(), "Are you sure want to clear the file content?", QMessageBox::Yes|QMessageBox::No);
-    if (answer != QMessageBox::Yes)
+    if (app_settings.show_clear_log_confirmation)
     {
-        return;
+        QMessageBox::StandardButton answer =
+                QMessageBox::question(this, qAppName(), "Are you sure want to clear the file content?", QMessageBox::Yes|QMessageBox::No);
+        if (answer != QMessageBox::Yes)
+        {
+            return;
+        }
     }
-    QFile file(current_file_path);
+    QFile file(app_settings.last_file);
     if (file.open(QIODevice::WriteOnly|QIODevice::Text))
     {
         file.write("");
     }
     else
     {
-        QMessageBox::critical(this, qAppName(), "Cannot open file:\n" + current_file_path);
+        QMessageBox::critical(this, qAppName(), "Cannot open file:\n" + app_settings.last_file);
     }
 }
 
@@ -238,7 +269,62 @@ void MainWindow::on_dir_tree_view_doubleClicked(const QModelIndex &index)
 }
 
 void MainWindow::on_actionReload_triggered()
+{    
+    this->OpenFile(app_settings.last_file);
+}
+
+void MainWindow::on_actionOptions_triggered()
 {
-    this->dir_model->refresh();
-    this->OpenFile(current_file_path);
+    options_dialog->SetSettings(app_settings);
+    int result = options_dialog->exec();
+    if (result)
+    {
+        options_dialog->UpdateSettings(app_settings);
+        ui->mainToolBar->setVisible(app_settings.show_toolbar);
+        ui->statusBar->setVisible(app_settings.show_status_bar);
+    }
+}
+
+void MainWindow::on_actionSelectAll_triggered()
+{
+    ui->current_file_text_edit->setFocus();
+    ui->current_file_text_edit->selectAll();
+}
+
+void MainWindow::on_actionCopy_triggered()
+{
+    QString selected_text = ui->current_file_text_edit->textCursor().selectedText();
+    QApplication::clipboard()->setText(selected_text);
+}
+
+void MainWindow::on_actionFind_triggered()
+{
+    find_dialog->show();
+}
+
+void MainWindow::on_actionFindNext_triggered()
+{
+    find_dialog->findNext();
+}
+
+void MainWindow::on_actionFindPrevious_triggered()
+{
+    find_dialog->findPrev();
+}
+
+void MainWindow::on_actionAbout_triggered()
+{
+    QMessageBox::about(this, qAppName(),
+                       tr("A log viewer application.<br><br>") +
+                       tr("Author: Vanpt"));
+}
+
+void MainWindow::on_actionFont_triggered()
+{
+    bool ok;
+    QFont font = QFontDialog::getFont(&ok, ui->current_file_text_edit->font(), this);
+    if (ok)
+    {
+        ui->current_file_text_edit->setFont(font);
+    }
 }
